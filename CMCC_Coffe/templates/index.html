@@ -440,10 +440,7 @@
             color: #004085;
         }
 
-        .status-cancelled {
-            background: #f8d7da;
-            color: #721c24;
-        }
+
 
         /* 商品信息样式 */
         .dishes-info {
@@ -541,6 +538,13 @@
 
         .btn-link:hover {
             color: #0056b3;
+        }
+        
+        .no-action {
+            color: #999;
+            font-style: italic;
+            font-size: 0.9em;
+            padding: 6px 12px;
         }
 
         /* 通知 */
@@ -976,8 +980,7 @@
             const classMap = {
                 2: 'status-pending',
                 3: 'status-preparing',
-                5: 'status-completed',
-                6: 'status-cancelled'
+                5: 'status-completed'
             };
             return classMap[status] || 'status-pending';
         }
@@ -989,22 +992,15 @@
                 buttons += `
                     <button class="btn btn-success" onclick="updateOrder(${orderId}, 'confirm')">接单</button>
                     <button class="btn btn-danger" onclick="updateOrder(${orderId}, 'reject')">拒单</button>
-                    <a href="#" class="btn btn-link" onclick="viewOrder(${orderId})">查看</a>
                 `;
             } else if (status === 3) { // 准备中
                 buttons += `
                     <button class="btn btn-success" onclick="updateOrder(${orderId}, 'complete')">完成</button>
                     <button class="btn btn-danger" onclick="updateOrder(${orderId}, 'cancel')">取消</button>
-                    <a href="#" class="btn btn-link" onclick="viewOrder(${orderId})">查看</a>
                 `;
-            } else if (status === 5) { // 已完成
+                        } else if (status === 5) { // 已完成
                 buttons += `
                     <button class="btn btn-danger" onclick="updateOrder(${orderId}, 'cancel')">取消</button>
-                    <a href="#" class="btn btn-link" onclick="viewOrder(${orderId})">查看</a>
-                `;
-            } else if (status === 6) { // 已取消
-                buttons += `
-                    <a href="#" class="btn btn-link" onclick="viewOrder(${orderId})">查看</a>
                 `;
             }
             
@@ -1042,10 +1038,7 @@
             });
         }
 
-        function viewOrder(orderId) {
-            // 这里可以添加查看订单详情的逻辑
-            alert(`查看订单详情: ${orderId}`);
-        }
+
 
         function checkNewOrders(orders) {
             const currentCount = orders.length;
