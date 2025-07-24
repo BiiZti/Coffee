@@ -25,14 +25,16 @@ PENDING = 2          # 未完成
 COMPLETED = 5        # 已完成
 
 # Excel文件路径配置
-EXCEL_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orders")  # Excel文件存放文件夹
+EXCEL_FOLDER = os.path.join(os.path.expanduser("~"), "Desktop")  # 从桌面读取Excel文件
 EXCEL_PATTERN = "*.xlsx"  # Excel文件匹配模式
 
 def ensure_orders_folder():
-    """确保orders文件夹存在"""
+    """确保桌面路径存在"""
     if not os.path.exists(EXCEL_FOLDER):
-        os.makedirs(EXCEL_FOLDER)
-        print(f"创建文件夹: {EXCEL_FOLDER}")
+        print(f"❌ 桌面路径不存在: {EXCEL_FOLDER}")
+        return False
+    print(f"✅ 桌面路径正常: {EXCEL_FOLDER}")
+    return True
 
 def ensure_excel_files_writable():
     """确保Excel文件可写"""
@@ -83,8 +85,11 @@ def read_excel_orders():
     global orders_db, excel_file_modified_time, is_excel_updating
     
     try:
-        # 确保文件夹存在
-        ensure_orders_folder()
+        # 确保桌面路径存在
+        if not ensure_orders_folder():
+            print("❌ 无法访问桌面路径，使用空订单列表")
+            orders_db = []
+            return
         
         # 确保Excel文件可写
         ensure_excel_files_writable()
@@ -463,7 +468,12 @@ def api_orders_by_status(status):
 def api_excel_info():
     """获取Excel文件信息"""
     try:
-        ensure_orders_folder()
+        if not ensure_orders_folder():
+            return jsonify({
+                'code': 0,
+                'msg': '无法访问桌面路径',
+                'data': None
+            })
         excel_files = glob.glob(os.path.join(EXCEL_FOLDER, EXCEL_PATTERN))
         
         if excel_files:
@@ -497,7 +507,12 @@ def api_excel_info():
 def api_excel_status():
     """获取Excel文件状态信息"""
     try:
-        ensure_orders_folder()
+        if not ensure_orders_folder():
+            return jsonify({
+                'code': 0,
+                'msg': '无法访问桌面路径',
+                'data': None
+            })
         excel_files = glob.glob(os.path.join(EXCEL_FOLDER, EXCEL_PATTERN))
         
         if excel_files:

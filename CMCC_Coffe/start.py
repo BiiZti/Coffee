@@ -30,17 +30,21 @@ def main():
         print("请运行: pip install -r requirements.txt")
         sys.exit(1)
     
-    # 检查Excel文件
-    if not os.path.exists('orders'):
-        os.makedirs('orders')
-        print("📁 创建orders文件夹")
-    
-    excel_files = [f for f in os.listdir('orders') if f.endswith('.xlsx')]
-    if not excel_files:
-        print("⚠️  警告: orders文件夹中没有Excel文件")
-        print("请将Excel订单文件放入orders文件夹中")
+    # 检查桌面Excel文件
+    desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+    if not os.path.exists(desktop_path):
+        print(f"❌ 无法访问桌面路径: {desktop_path}")
     else:
-        print(f"📊 找到 {len(excel_files)} 个Excel文件")
+        print(f"✅ 桌面路径正常: {desktop_path}")
+    
+    excel_files = [f for f in os.listdir(desktop_path) if f.endswith('.xlsx')]
+    if not excel_files:
+        print("⚠️  警告: 桌面中没有Excel文件")
+        print("请将Excel订单文件放到桌面上")
+    else:
+        print(f"📊 桌面找到 {len(excel_files)} 个Excel文件")
+        for file in excel_files:
+            print(f"   - {file}")
     
     print("\n🎯 启动系统...")
     print("=" * 50)
