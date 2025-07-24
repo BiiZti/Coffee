@@ -16,12 +16,13 @@ orders_db = []
 order_counter = 1
 # 记录前端操作的时间戳，防止被Excel数据覆盖
 frontend_operations = {}  # {order_id: last_operation_time}
+# Excel文件监控变量
+excel_file_modified_time = None  # 记录Excel文件最后修改时间
+is_excel_updating = False  # 标记Excel是否正在被外部程序更新
 
 # 订单状态常量
-TO_BE_CONFIRMED = 2  # 待接单
-PREPARING = 3        # 准备中
+PENDING = 2          # 未完成
 COMPLETED = 5        # 已完成
-CANCELLED = 6        # 已取消
 
 # Excel文件路径配置
 EXCEL_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orders")  # Excel文件存放文件夹
@@ -33,25 +34,60 @@ def ensure_orders_folder():
         os.makedirs(EXCEL_FOLDER)
         print(f"创建文件夹: {EXCEL_FOLDER}")
 
+def ensure_excel_files_writable():
+    """确保Excel文件可写"""
+    try:
+        # 查找所有Excel文件
+        excel_files = glob.glob(os.path.join(EXCEL_FOLDER, EXCEL_PATTERN))
+        
+        if not excel_files:
+            print("📁 未找到Excel文件，跳过权限检查")
+            return
+        
+        print("🔧 检查Excel文件写入权限...")
+        
+        for file_path in excel_files:
+            try:
+                # 检查文件是否可写
+                if not os.access(file_path, os.W_OK):
+                    print(f"⚠️  文件不可写: {os.path.basename(file_path)}")
+                    
+                    # 尝试修复文件权限
+                    import stat
+                    current_attrs = os.stat(file_path).st_mode
+                    
+                    # 添加写入权限
+                    new_attrs = current_attrs | stat.S_IWRITE
+                    os.chmod(file_path, new_attrs)
+                    
+                    print(f"✅ 已修复文件权限: {os.path.basename(file_path)}")
+                else:
+                    print(f"✅ 文件可写: {os.path.basename(file_path)}")
+                    
+            except Exception as e:
+                print(f"❌ 处理文件权限时出错 {os.path.basename(file_path)}: {e}")
+        
+        print("🎉 Excel文件权限检查完成")
+        
+    except Exception as e:
+        print(f"❌ 检查Excel文件权限时出错: {e}")
+
 def map_order_status(status_text):
     """映射订单状态文本到数字状态"""
-    status_mapping = {
-        '备货中': TO_BE_CONFIRMED,  # 待接单
-        '制作中': PREPARING,        # 准备中
-        '已完成': COMPLETED,        # 已完成
-        '待接单': TO_BE_CONFIRMED,  # 待接单
-        '准备中': PREPARING,        # 准备中
-        '已完成': COMPLETED         # 已完成
-    }
-    return status_mapping.get(status_text, TO_BE_CONFIRMED)
+    # 保持原始状态，不进行映射转换
+    # 这样前端可以显示原始的订单状态文本
+    return status_text
 
 def read_excel_orders():
     """从Excel文件读取订单数据"""
-    global orders_db
+    global orders_db, excel_file_modified_time, is_excel_updating
     
     try:
         # 确保文件夹存在
         ensure_orders_folder()
+        
+        # 确保Excel文件可写
+        ensure_excel_files_writable()
         
         # 查找所有Excel文件
         excel_files = glob.glob(os.path.join(EXCEL_FOLDER, EXCEL_PATTERN))
@@ -63,6 +99,33 @@ def read_excel_orders():
         
         # 读取最新的Excel文件
         latest_file = max(excel_files, key=os.path.getctime)
+        
+        # 检查Excel文件是否被外部程序修改
+        current_modified_time = os.path.getmtime(latest_file)
+        
+        if excel_file_modified_time is not None and current_modified_time > excel_file_modified_time:
+            # Excel文件被外部程序修改了
+            print(f"🔄 检测到Excel文件被外部程序修改: {latest_file}")
+            is_excel_updating = True
+            
+            # 等待一段时间，确保外部程序完成写入
+            time.sleep(3)
+            
+            # 再次检查修改时间，确保写入完成
+            final_modified_time = os.path.getmtime(latest_file)
+            if final_modified_time == current_modified_time:
+                print("✅ Excel文件写入完成，开始读取新数据")
+                # 保持冲突检测状态5秒，防止用户操作冲突
+                time.sleep(5)
+                is_excel_updating = False
+            else:
+                print("⏳ Excel文件仍在被修改，等待完成...")
+                time.sleep(3)
+                is_excel_updating = False
+        
+        # 更新文件修改时间
+        excel_file_modified_time = current_modified_time
+        
         print(f"读取Excel文件: {latest_file}")
         
         # 读取Excel数据
@@ -94,23 +157,23 @@ def read_excel_orders():
                 if status_text == '已取消':
                     continue
                 
-                # 根据真实Excel列名映射数据
+                # 根据您指定的列名映射数据
                 order = {
                     'id': valid_order_id,
                     'number': str(order_number),
                     'status': map_order_status(status_text),
                     'userName': str(row.get('姓名', '未知')),
-                    'phone': str(int(row.get('手机号码', 0))) if pd.notna(row.get('手机号码')) else '未知',
-                    'address': f"{str(row.get('公司', ''))} - {str(row.get('部门', ''))}".strip(' -'),
+                    'phone': str(row.get('手机号码', '未知')),
+                    'address': str(row.get('部门', '未知')),
                     'amount': float(row.get('订单金额', 0)),
-                    'remark': f"物流方式: {str(row.get('物流方式', ''))} | 取货时间: {str(row.get('取货时间', ''))} | 取餐码: {str(row.get('取餐码', ''))}",
+                    'remark': f"取餐码: {str(row.get('取餐码', ''))}",
                     'orderTime': str(row.get('订单时间', datetime.now().isoformat())),
                     'dishes': []
                 }
                 
-                # 处理菜品信息（如果有的话）
-                if '菜品' in row and pd.notna(row['菜品']):
-                    dishes_str = str(row['菜品'])
+                # 处理商品信息（Unnamed: 39列）
+                if 'Unnamed: 39' in row and pd.notna(row['Unnamed: 39']):
+                    dishes_str = str(row['Unnamed: 39'])
                     if dishes_str and dishes_str != 'nan':
                         order['dishes'] = [{'name': dish.strip(), 'price': 0} for dish in dishes_str.split(',')]
                 
@@ -197,24 +260,25 @@ def get_orders_by_status(status=None):
     """根据状态获取订单"""
     if status is None:
         return orders_db
-    return [order for order in orders_db if order['status'] == status]
+    
+    # 处理字符串状态和数字状态的兼容性
+    if isinstance(status, str):
+        # 字符串状态直接匹配
+        return [order for order in orders_db if order['status'] == status]
+    else:
+        # 数字状态匹配
+        return [order for order in orders_db if order['status'] == status]
 
 def update_order_status(order_id, new_status):
     """更新订单状态"""
-    global orders_db, frontend_operations
+    global orders_db, frontend_operations, is_excel_updating
     
-    # 如果是要取消订单，直接从列表中移除
-    if new_status == CANCELLED:
-        for i, order in enumerate(orders_db):
-            if order['id'] == order_id:
-                removed_order = orders_db.pop(i)
-                print(f"🗑️  订单{order_id}已取消，从列表中移除")
-                # 同步更新Excel文件
-                update_excel_order_status(order_id, new_status)
-                return True
-        return False
+    # 检查Excel是否正在被外部程序更新
+    if is_excel_updating:
+        print(f"⚠️  订单{order_id}状态更新被拒绝：Excel文件正在被外部程序更新")
+        return False, "系统繁忙，请稍后再试"
     
-    # 其他状态更新
+    # 更新订单状态
     for order in orders_db:
         if order['id'] == order_id:
             old_status = order['status']
@@ -228,8 +292,8 @@ def update_order_status(order_id, new_status):
             print(f"📝 记录前端操作: 订单{order_id} {old_status}→{new_status}")
             # 同步更新Excel文件
             update_excel_order_status(order_id, new_status)
-            return True
-    return False
+            return True, "操作成功"
+    return False, "订单不存在"
 
 def update_excel_order_status(order_id, new_status):
     """更新Excel文件中的订单状态"""
@@ -274,16 +338,19 @@ def update_excel_order_status(order_id, new_status):
             return False
         
         if row_number <= worksheet.max_row:
-            # 映射数字状态到文本状态
-            status_mapping = {
-                TO_BE_CONFIRMED: '备货中',
-                PREPARING: '制作中',
-                COMPLETED: '已完成',
-                CANCELLED: '已取消'
-            }
-            status_text = status_mapping.get(new_status, '备货中')
+            # 处理状态更新
+            if isinstance(new_status, str):
+                # 如果是字符串状态，直接使用
+                status_text = new_status
+            else:
+                # 如果是数字状态，进行映射
+                status_mapping = {
+                    PENDING: '备货中',
+                    COMPLETED: '已完成'
+                }
+                status_text = status_mapping.get(new_status, '备货中')
             
-            print(f"🔧 更新Excel: 订单{order_id}, 数字状态{new_status} -> 文本状态'{status_text}'")
+            print(f"🔧 更新Excel: 订单{order_id}, 状态{new_status} -> 文本状态'{status_text}'")
             
             # 更新状态列（订单状态是第18列，R列）
             status_cell = worksheet.cell(row=row_number, column=18)
@@ -312,8 +379,9 @@ def index():
 
 @app.route('/api/orders')
 def api_orders():
-    """获取待接单订单"""
-    pending_orders = get_orders_by_status(TO_BE_CONFIRMED)
+    """获取未完成订单"""
+    # 获取所有非"已完成"状态的订单
+    pending_orders = [order for order in orders_db if order['status'] != '已完成']
     return jsonify({
         'code': 1,
         'msg': 'success',
@@ -333,38 +401,21 @@ def api_all_orders():
 def api_update_order(order_id, action):
     """更新订单状态"""
     try:
-        if action == 'confirm':
-            success = update_order_status(order_id, PREPARING)
-            message = '接单成功' if success else '接单失败'
-        elif action == 'reject':
-            success = update_order_status(order_id, CANCELLED)
-            message = '拒单成功' if success else '拒单失败'
-        elif action == 'complete':
-            success = update_order_status(order_id, COMPLETED)
-            message = '完成订单成功' if success else '完成订单失败'
-        elif action == 'cancel':
-            success = update_order_status(order_id, CANCELLED)
-            message = '取消订单成功，已从列表中移除' if success else '取消订单失败'
+        if action == 'complete':
+            success, message = update_order_status(order_id, '已完成')
+            if success:
+                return jsonify({
+                    'code': 1, 
+                    'msg': f'{message}，Excel文件已同步更新'
+                })
+            else:
+                return jsonify({
+                    'code': 0, 
+                    'msg': message
+                })
         else:
             return jsonify({'code': 0, 'msg': '无效的操作'})
-        
-        if success:
-            return jsonify({
-                'code': 1, 
-                'msg': f'{message}，Excel文件已同步更新'
-            })
-        else:
-            # 检查是否是权限错误
-            excel_files = glob.glob(os.path.join(EXCEL_FOLDER, EXCEL_PATTERN))
-            if excel_files:
-                latest_file = max(excel_files, key=os.path.getctime)
-                if not os.access(latest_file, os.W_OK):
-                    return jsonify({
-                        'code': 0, 
-                        'msg': f'{message}，但Excel文件更新失败。请检查文件是否被占用或设置为只读。'
-                    })
-            return jsonify({'code': 0, 'msg': message})
-        
+            
     except Exception as e:
         return jsonify({'code': 0, 'msg': f'操作失败: {str(e)}'})
 
@@ -372,9 +423,10 @@ def api_update_order(order_id, action):
 def api_statistics():
     """获取统计信息"""
     total_orders = len(orders_db)
-    pending_orders = len(get_orders_by_status(TO_BE_CONFIRMED))
-    preparing_orders = len(get_orders_by_status(PREPARING))
-    completed_orders = len(get_orders_by_status(COMPLETED))
+    # 统计未完成订单（非"已完成"状态的订单）
+    pending_orders = len([order for order in orders_db if order['status'] != '已完成'])
+    # 统计已完成订单
+    completed_orders = len([order for order in orders_db if order['status'] == '已完成'])
     total_amount = sum(order['amount'] for order in orders_db)
     
     return jsonify({
@@ -383,7 +435,6 @@ def api_statistics():
         'data': {
             'total_orders': total_orders,
             'pending_orders': pending_orders,
-            'preparing_orders': preparing_orders,
             'completed_orders': completed_orders,
             'total_amount': round(total_amount, 2)
         }
@@ -450,7 +501,7 @@ def api_excel_status():
             df = pd.read_excel(latest_file, engine='openpyxl')
             
             # 统计各状态数量
-            status_counts = df['状态'].value_counts().to_dict()
+            status_counts = df['订单状态'].value_counts().to_dict()
             
             return jsonify({
                 'code': 1,
@@ -504,10 +555,44 @@ def api_frontend_operations():
     except Exception as e:
         return jsonify({'code': 0, 'msg': f'获取前端操作记录失败: {str(e)}'})
 
+@app.route('/api/system-status')
+def api_system_status():
+    """获取系统状态"""
+    try:
+        # 安全处理时间戳
+        excel_time_str = None
+        if excel_file_modified_time is not None:
+            try:
+                if hasattr(excel_file_modified_time, 'isoformat'):
+                    excel_time_str = excel_file_modified_time.isoformat()
+                else:
+                    # 如果是float类型的时间戳，转换为datetime
+                    from datetime import datetime
+                    excel_time_str = datetime.fromtimestamp(excel_file_modified_time).isoformat()
+            except Exception:
+                excel_time_str = str(excel_file_modified_time)
+        
+        return jsonify({
+            'code': 1,
+            'msg': 'success',
+            'data': {
+                'is_excel_updating': is_excel_updating,
+                'excel_file_modified_time': excel_time_str,
+                'frontend_operations_count': len(frontend_operations),
+                'orders_count': len(orders_db)
+            }
+        })
+    except Exception as e:
+        return jsonify({'code': 0, 'msg': f'获取系统状态失败: {str(e)}'})
+
 # 导出函数供main.py使用
 def init_app():
     """初始化应用"""
     print("📊 初始化数据读取...")
+    
+    # 确保Excel文件可写
+    ensure_excel_files_writable()
+    
     read_excel_orders()
     
     # 启动后台Excel读取线程

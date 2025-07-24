@@ -680,16 +680,10 @@
                     <span>全部订单</span>
                 </button>
                 <button class="tab-btn" onclick="filterOrders('pending', this)">
-                    <span>待接单</span>
-                </button>
-                <button class="tab-btn" onclick="filterOrders('preparing', this)">
-                    <span>准备中</span>
+                    <span>未完成</span>
                 </button>
                 <button class="tab-btn" onclick="filterOrders('completed', this)">
                     <span>已完成</span>
-                </button>
-                <button class="tab-btn" onclick="filterOrders('cancelled', this)">
-                    <span>已取消</span>
                 </button>
             </div>
         </div>
@@ -817,16 +811,10 @@
                     filteredOrders = currentOrders;
                     break;
                 case 'pending':
-                    filteredOrders = currentOrders.filter(o => o.status === 2);
-                    break;
-                case 'preparing':
-                    filteredOrders = currentOrders.filter(o => o.status === 3);
+                    filteredOrders = currentOrders.filter(o => o.status !== '已完成');
                     break;
                 case 'completed':
-                    filteredOrders = currentOrders.filter(o => o.status === 5);
-                    break;
-                case 'cancelled':
-                    filteredOrders = currentOrders.filter(o => o.status === 6);
+                    filteredOrders = currentOrders.filter(o => o.status === '已完成');
                     break;
                 default:
                     filteredOrders = currentOrders;
@@ -849,13 +837,11 @@
                 });
             }
             
-            // 智能排序：待接单和准备中优先显示，已完成和已取消按时间倒序
+            // 智能排序：未完成优先显示，已完成按时间倒序
             filteredOrders.sort((a, b) => {
-                // 定义状态优先级：待接单(2) > 准备中(3) > 已完成(5) > 已取消(6)
-                const statusPriority = { 2: 1, 3: 2, 5: 3, 6: 4 };
-                
-                const priorityA = statusPriority[a.status] || 5;
-                const priorityB = statusPriority[b.status] || 5;
+                // 定义状态优先级：非已完成 > 已完成
+                const priorityA = a.status === '已完成' ? 2 : 1;
+                const priorityB = b.status === '已完成' ? 2 : 1;
                 
                 // 如果状态优先级不同，按优先级排序
                 if (priorityA !== priorityB) {
@@ -967,19 +953,32 @@
         }
 
         function getStatusText(status) {
+            // 处理字符串状态
+            if (typeof status === 'string') {
+                return status; // 直接返回原始状态文本
+            }
+            
+            // 兼容数字状态（向后兼容）
             const statusMap = {
-                2: '待接单',
-                3: '准备中',
-                5: '已完成',
-                6: '已取消'
+                2: '未完成',
+                5: '已完成'
             };
             return statusMap[status] || '未知状态';
         }
 
         function getStatusClass(status) {
+            // 处理字符串状态
+            if (typeof status === 'string') {
+                if (status === '已完成') {
+                    return 'status-completed';
+                } else {
+                    return 'status-pending';
+                }
+            }
+            
+            // 兼容数字状态（向后兼容）
             const classMap = {
                 2: 'status-pending',
-                3: 'status-preparing',
                 5: 'status-completed'
             };
             return classMap[status] || 'status-pending';
@@ -988,20 +987,20 @@
         function getActionButtons(status, orderId) {
             let buttons = '';
             
-            if (status === 2) { // 待接单
-                buttons += `
-                    <button class="btn btn-success" onclick="updateOrder(${orderId}, 'confirm')">接单</button>
-                    <button class="btn btn-danger" onclick="updateOrder(${orderId}, 'reject')">拒单</button>
-                `;
-            } else if (status === 3) { // 准备中
-                buttons += `
-                    <button class="btn btn-success" onclick="updateOrder(${orderId}, 'complete')">完成</button>
-                    <button class="btn btn-danger" onclick="updateOrder(${orderId}, 'cancel')">取消</button>
-                `;
-                        } else if (status === 5) { // 已完成
-                buttons += `
-                    <button class="btn btn-danger" onclick="updateOrder(${orderId}, 'cancel')">取消</button>
-                `;
+            // 处理字符串状态
+            if (typeof status === 'string') {
+                if (status !== '已完成') {
+                    buttons += `
+                        <button class="btn btn-secondary" onclick="updateOrder(${orderId}, 'complete')">${status}</button>
+                    `;
+                }
+            } else {
+                // 兼容数字状态（向后兼容）
+                if (status === 2) { // 未完成
+                    buttons += `
+                        <button class="btn btn-secondary" onclick="updateOrder(${orderId}, 'complete')">未完成</button>
+                    `;
+                }
             }
             
             return buttons;
@@ -1009,10 +1008,7 @@
 
         function updateOrder(orderId, action) {
             const actionText = {
-                'confirm': '接单',
-                'reject': '拒单',
-                'complete': '完成订单',
-                'cancel': '取消订单'
+                'complete': '完成订单'
             }[action];
 
             // 直接执行操作，不需要确认对话框
