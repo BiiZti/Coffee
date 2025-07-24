@@ -38,7 +38,7 @@ def main():
     excel_files = [f for f in os.listdir('orders') if f.endswith('.xlsx')]
     if not excel_files:
         print("⚠️  警告: orders文件夹中没有Excel文件")
-        print("请运行: python generate_simple_test_data.py 生成测试数据")
+        print("请将Excel订单文件放入orders文件夹中")
     else:
         print(f"📊 找到 {len(excel_files)} 个Excel文件")
     

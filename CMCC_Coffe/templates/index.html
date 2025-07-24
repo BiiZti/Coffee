@@ -955,9 +955,6 @@
             let dishesText = '无商品信息';
             if (order.dishes && order.dishes.length > 0) {
                 dishesText = order.dishes.map(dish => dish.name).join(', ');
-            } else if (order.remark && order.remark.trim()) {
-                // 如果没有商品信息但有备注，可能备注中包含商品信息
-                dishesText = order.remark;
             }
             
             // 处理备注信息显示

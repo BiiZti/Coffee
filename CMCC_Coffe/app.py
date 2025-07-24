@@ -175,7 +175,12 @@ def read_excel_orders():
                 if 'Unnamed: 39' in row and pd.notna(row['Unnamed: 39']):
                     dishes_str = str(row['Unnamed: 39'])
                     if dishes_str and dishes_str != 'nan':
-                        order['dishes'] = [{'name': dish.strip(), 'price': 0} for dish in dishes_str.split(',')]
+                        # 如果包含逗号，按逗号分割；否则作为单个商品
+                        if ',' in dishes_str:
+                            order['dishes'] = [{'name': dish.strip(), 'price': 0} for dish in dishes_str.split(',')]
+                        else:
+                            order['dishes'] = [{'name': dishes_str.strip(), 'price': 0}]
+                        print(f"📦 订单{valid_order_id}商品信息: {dishes_str}")
                 
                 # 如果有前端操作记录，检查是否需要保护前端操作
                 if has_frontend_operation and frontend_operation:
