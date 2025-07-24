@@ -555,6 +555,64 @@ def api_frontend_operations():
     except Exception as e:
         return jsonify({'code': 0, 'msg': f'获取前端操作记录失败: {str(e)}'})
 
+@app.route('/api/search/pickup-code/<pickup_code>')
+def api_search_by_pickup_code(pickup_code):
+    """根据取餐码查询订单"""
+    try:
+        # 在所有订单中查找匹配的取餐码
+        matching_orders = []
+        
+        for order in orders_db:
+            # 从remark字段中提取取餐码
+            remark = order.get('remark', '')
+            if '取餐码:' in remark:
+                order_pickup_code = remark.split('取餐码:')[1].strip()
+                if order_pickup_code == pickup_code:
+                    matching_orders.append(order)
+        
+        if matching_orders:
+            return jsonify({
+                'code': 1,
+                'msg': f'找到 {len(matching_orders)} 个匹配的订单',
+                'data': matching_orders
+            })
+        else:
+            return jsonify({
+                'code': 0,
+                'msg': f'未找到取餐码为 {pickup_code} 的订单',
+                'data': []
+            })
+            
+    except Exception as e:
+        return jsonify({'code': 0, 'msg': f'查询失败: {str(e)}'})
+
+@app.route('/api/search/phone/<phone>')
+def api_search_by_phone(phone):
+    """根据手机号查询订单"""
+    try:
+        # 在所有订单中查找匹配的手机号
+        matching_orders = []
+        
+        for order in orders_db:
+            if order.get('phone', '') == phone:
+                matching_orders.append(order)
+        
+        if matching_orders:
+            return jsonify({
+                'code': 1,
+                'msg': f'找到 {len(matching_orders)} 个匹配的订单',
+                'data': matching_orders
+            })
+        else:
+            return jsonify({
+                'code': 0,
+                'msg': f'未找到手机号为 {phone} 的订单',
+                'data': []
+            })
+            
+    except Exception as e:
+        return jsonify({'code': 0, 'msg': f'查询失败: {str(e)}'})
+
 @app.route('/api/system-status')
 def api_system_status():
     """获取系统状态"""
