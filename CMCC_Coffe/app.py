@@ -26,7 +26,7 @@ COMPLETED = 5        # 已完成
 
 # Excel文件路径配置
 EXCEL_FOLDER = os.path.join(os.path.expanduser("~"), "Desktop")  # 从桌面读取Excel文件
-EXCEL_PATTERN = "*.xlsx"  # Excel文件匹配模式
+EXCEL_PATTERN = "*咖啡订单*.xlsx"  # 只匹配包含"咖啡订单"的Excel文件
 
 def ensure_orders_folder():
     """确保桌面路径存在"""
@@ -39,14 +39,14 @@ def ensure_orders_folder():
 def ensure_excel_files_writable():
     """确保Excel文件可写"""
     try:
-        # 查找所有Excel文件
+        # 查找所有咖啡订单Excel文件
         excel_files = glob.glob(os.path.join(EXCEL_FOLDER, EXCEL_PATTERN))
         
         if not excel_files:
-            print("📁 未找到Excel文件，跳过权限检查")
+            print("📁 未找到咖啡订单Excel文件，跳过权限检查")
             return
         
-        print("🔧 检查Excel文件写入权限...")
+        print("🔧 检查咖啡订单Excel文件写入权限...")
         
         for file_path in excel_files:
             try:
@@ -69,7 +69,7 @@ def ensure_excel_files_writable():
             except Exception as e:
                 print(f"❌ 处理文件权限时出错 {os.path.basename(file_path)}: {e}")
         
-        print("🎉 Excel文件权限检查完成")
+        print("🎉 咖啡订单Excel文件权限检查完成")
         
     except Exception as e:
         print(f"❌ 检查Excel文件权限时出错: {e}")
@@ -94,23 +94,23 @@ def read_excel_orders():
         # 确保Excel文件可写
         ensure_excel_files_writable()
         
-        # 查找所有Excel文件
+        # 查找所有咖啡订单Excel文件
         excel_files = glob.glob(os.path.join(EXCEL_FOLDER, EXCEL_PATTERN))
         
         if not excel_files:
-            print("未找到Excel文件，使用空订单列表")
+            print("未找到咖啡订单Excel文件，使用空订单列表")
             orders_db = []
             return
         
-        # 读取最新的Excel文件
+        # 读取最新的咖啡订单Excel文件
         latest_file = max(excel_files, key=os.path.getctime)
         
         # 检查Excel文件是否被外部程序修改
         current_modified_time = os.path.getmtime(latest_file)
         
         if excel_file_modified_time is not None and current_modified_time > excel_file_modified_time:
-            # Excel文件被外部程序修改了
-            print(f"🔄 检测到Excel文件被外部程序修改: {latest_file}")
+            # 咖啡订单Excel文件被外部程序修改了
+            print(f"🔄 检测到咖啡订单Excel文件被外部程序修改: {latest_file}")
             is_excel_updating = True
             
             # 等待一段时间，确保外部程序完成写入
@@ -119,23 +119,23 @@ def read_excel_orders():
             # 再次检查修改时间，确保写入完成
             final_modified_time = os.path.getmtime(latest_file)
             if final_modified_time == current_modified_time:
-                print("✅ Excel文件写入完成，开始读取新数据")
+                print("✅ 咖啡订单Excel文件写入完成，开始读取新数据")
                 # 保持冲突检测状态5秒，防止用户操作冲突
                 time.sleep(5)
                 is_excel_updating = False
             else:
-                print("⏳ Excel文件仍在被修改，等待完成...")
+                print("⏳ 咖啡订单Excel文件仍在被修改，等待完成...")
                 time.sleep(3)
                 is_excel_updating = False
         
         # 更新文件修改时间
         excel_file_modified_time = current_modified_time
         
-        print(f"读取Excel文件: {latest_file}")
+        print(f"读取咖啡订单Excel文件: {latest_file}")
         
         # 读取Excel数据
         df = pd.read_excel(latest_file, engine='openpyxl')
-        print(f"成功读取Excel文件，数据行数: {len(df)}")
+        print(f"成功读取咖啡订单Excel文件，数据行数: {len(df)}")
         
         # 保存现有订单数据用于比较
         old_orders_db = orders_db.copy()
@@ -249,7 +249,7 @@ def read_excel_orders():
         print(f"成功读取 {len(orders_db)} 个订单")
         
     except Exception as e:
-        print(f"读取Excel文件时出错: {e}")
+        print(f"读取咖啡订单Excel文件时出错: {e}")
         import traceback
         traceback.print_exc()
         # 如果读取失败，保持现有数据不变
@@ -285,7 +285,7 @@ def update_order_status(order_id, new_status):
     
     # 检查Excel是否正在被外部程序更新
     if is_excel_updating:
-        print(f"⚠️  订单{order_id}状态更新被拒绝：Excel文件正在被外部程序更新")
+        print(f"⚠️  订单{order_id}状态更新被拒绝：咖啡订单Excel文件正在被外部程序更新")
         return False, "系统繁忙，请稍后再试"
     
     # 更新订单状态
@@ -306,20 +306,20 @@ def update_order_status(order_id, new_status):
     return False, "订单不存在"
 
 def update_excel_order_status(order_id, new_status):
-    """更新Excel文件中的订单状态"""
+    """更新咖啡订单Excel文件中的订单状态"""
     try:
-        # 查找最新的Excel文件
+        # 查找最新的咖啡订单Excel文件
         excel_files = glob.glob(os.path.join(EXCEL_FOLDER, EXCEL_PATTERN))
         if not excel_files:
-            print("未找到Excel文件，无法更新状态")
+            print("未找到咖啡订单Excel文件，无法更新状态")
             return False
         
         latest_file = max(excel_files, key=os.path.getctime)
-        print(f"更新Excel文件: {latest_file}")
+        print(f"更新咖啡订单Excel文件: {latest_file}")
         
         # 检查文件是否可写
         if not os.access(latest_file, os.W_OK):
-            print(f"⚠️  Excel文件无写入权限，请检查文件是否被占用或设置为只读")
+            print(f"⚠️  咖啡订单Excel文件无写入权限，请检查文件是否被占用或设置为只读")
             print(f"   文件路径: {latest_file}")
             print(f"   建议操作:")
             print(f"   1. 关闭可能打开该文件的Excel程序")
@@ -368,18 +368,18 @@ def update_excel_order_status(order_id, new_status):
             
             # 保存文件
             workbook.save(latest_file)
-            print(f"✅ 成功更新Excel文件，订单{order_id}状态改为{status_text}")
+            print(f"✅ 成功更新咖啡订单Excel文件，订单{order_id}状态改为{status_text}")
             return True
         else:
-            print(f"订单ID {order_id} 超出Excel文件范围")
+            print(f"订单ID {order_id} 超出咖啡订单Excel文件范围")
             return False
             
     except PermissionError as e:
-        print(f"❌ Excel文件权限错误: {e}")
+        print(f"❌ 咖啡订单Excel文件权限错误: {e}")
         print(f"   请确保Excel文件未被其他程序打开，且具有写入权限")
         return False
     except Exception as e:
-        print(f"❌ 更新Excel文件时出错: {e}")
+        print(f"❌ 更新咖啡订单Excel文件时出错: {e}")
         return False
 
 # Flask路由定义
@@ -416,7 +416,7 @@ def api_update_order(order_id, action):
             if success:
                 return jsonify({
                     'code': 1, 
-                    'msg': f'{message}，Excel文件已同步更新'
+                    'msg': f'{message}，咖啡订单Excel文件已同步更新'
                 })
             else:
                 return jsonify({
@@ -466,7 +466,7 @@ def api_orders_by_status(status):
 
 @app.route('/api/excel-info')
 def api_excel_info():
-    """获取Excel文件信息"""
+    """获取咖啡订单Excel文件信息"""
     try:
         if not ensure_orders_folder():
             return jsonify({
@@ -505,7 +505,7 @@ def api_excel_info():
 
 @app.route('/api/excel-status')
 def api_excel_status():
-    """获取Excel文件状态信息"""
+    """获取咖啡订单Excel文件状态信息"""
     try:
         if not ensure_orders_folder():
             return jsonify({
@@ -517,7 +517,7 @@ def api_excel_status():
         
         if excel_files:
             latest_file = max(excel_files, key=os.path.getctime)
-            # 读取Excel文件获取最新状态
+            # 读取咖啡订单Excel文件获取最新状态
             df = pd.read_excel(latest_file, engine='openpyxl')
             
             # 统计各状态数量
@@ -536,12 +536,12 @@ def api_excel_status():
         else:
             return jsonify({
                 'code': 0,
-                'msg': '未找到Excel文件',
+                'msg': '未找到咖啡订单Excel文件',
                 'data': None
             })
         
     except Exception as e:
-        return jsonify({'code': 0, 'msg': f'获取Excel状态失败: {str(e)}'})
+        return jsonify({'code': 0, 'msg': f'获取咖啡订单Excel状态失败: {str(e)}'})
 
 @app.route('/api/frontend-operations')
 def api_frontend_operations():

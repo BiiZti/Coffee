@@ -546,7 +546,7 @@
         .btn-link:hover {
             color: #0056b3;
         }
-        
+
         .no-action {
             color: #999;
             font-style: italic;
@@ -649,7 +649,7 @@
                     <i class="fas fa-cog"></i>
                     <span>营业状态设置</span>
                     <i class="fas fa-chevron-down"></i>
-                </button>
+            </button>
                 <div class="settings-menu" id="settings-menu">
                     <div class="settings-item" onclick="setBusinessStatus('open')">
                         <i class="fas fa-play-circle"></i>
@@ -667,7 +667,7 @@
                 <i class="fas fa-chevron-down"></i>
             </div>
         </div>
-    </div>
+        </div>
 
     <!-- 侧边栏 -->
     <div class="sidebar">
@@ -1023,16 +1023,16 @@
             // 处理字符串状态
             if (typeof status === 'string') {
                 if (status !== '已完成') {
-                    buttons += `
+                buttons += `
                         <button class="btn btn-secondary" onclick="updateOrder(${orderId}, 'complete')">${status}</button>
-                    `;
+                `;
                 }
             } else {
                 // 兼容数字状态（向后兼容）
                 if (status === 2) { // 未完成
-                    buttons += `
+                buttons += `
                         <button class="btn btn-secondary" onclick="updateOrder(${orderId}, 'complete')">未完成</button>
-                    `;
+                `;
                 }
             }
             
